@@ -14,6 +14,12 @@ if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
   SSH_ENV="--setenv SSH_AUTH_SOCK $SSH_AUTH_SOCK"
 fi
 
+# SSH public keys - bind whichever key types exist
+SSH_PUBKEY_BINDS=""
+for pubkey in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
+  [ -f "$pubkey" ] && SSH_PUBKEY_BINDS="$SSH_PUBKEY_BINDS --ro-bind $pubkey $pubkey"
+done
+
 # D-Bus session bus - required for GNOME Keyring / Secret Service access
 # (Claude Code stores auth tokens in the system keyring)
 DBUS_BINDS=""
@@ -61,7 +67,7 @@ bwrap \
   --ro-bind "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts" \
   --tmpfs /tmp \
   $SSH_BINDS \
-  --ro-bind "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_rsa.pub" \
+  $SSH_PUBKEY_BINDS \
   --ro-bind /usr/bin/gpg /usr/bin/gpg \
   $GPG_ENV \
   --ro-bind "$HOME/.gitconfig" "$HOME/.gitconfig" \
