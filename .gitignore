@@ -4,3 +4,4 @@
 
 # Claude Code local config
 .claude/
+/.agent-shell/

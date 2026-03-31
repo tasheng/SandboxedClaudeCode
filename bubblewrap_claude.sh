@@ -5,12 +5,15 @@ OPTIONAL_BINDS=""
 [ -d "$HOME/.nvm" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.nvm $HOME/.nvm"
 [ -d "$HOME/.config/git" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.config/git $HOME/.config/git"
 [ -d "$HOME/.config/gh" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.config/gh $HOME/.config/gh"
+[ -d "/cvmfs" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind /cvmfs /cvmfs"
+# process can see git token. Use at your own risk!
+[ -f "$HOME/.git-credentials" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.git-credentials $HOME/.git-credentials"
 
 # SSH agent socket - only bind if SSH_AUTH_SOCK is set and exists
 SSH_BINDS=""
 SSH_ENV=""
 if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
-  SSH_BINDS="--bind $(dirname "$SSH_AUTH_SOCK") $(dirname "$SSH_AUTH_SOCK") --ro-bind $SSH_AUTH_SOCK $SSH_AUTH_SOCK"
+  SSH_BINDS="--bind $(dirname "$SSH_AUTH_SOCK") $(dirname "$SSH_AUTH_SOCK")"
   SSH_ENV="--setenv SSH_AUTH_SOCK $SSH_AUTH_SOCK"
 fi
 
