@@ -2,12 +2,27 @@
 
 # Optional paths - only bind if they exist
 OPTIONAL_BINDS=""
-[ -d "$HOME/.nvm" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.nvm $HOME/.nvm"
-[ -d "$HOME/.config/git" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.config/git $HOME/.config/git"
-[ -d "$HOME/.config/gh" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.config/gh $HOME/.config/gh"
-[ -d "/cvmfs" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind /cvmfs /cvmfs"
-# process can see git token. Use at your own risk!
-[ -f "$HOME/.git-credentials" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $HOME/.git-credentials $HOME/.git-credentials"
+
+optional_bind_dirs=(
+  "$HOME/.nvm"
+  "$HOME/.config/git"
+  "$HOME/.config/gh"
+  "/cvmfs"
+  "/opt/claude-code"
+)
+
+optional_bind_files=(
+  # Expose git token to the container. Use at your own risk!
+  "$HOME/.git-credentials"
+)
+
+for path in "${optional_bind_dirs[@]}"; do
+  [ -d "$path" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $path $path"
+done
+
+for path in "${optional_bind_files[@]}"; do
+  [ -f "$path" ] && OPTIONAL_BINDS="$OPTIONAL_BINDS --ro-bind $path $path"
+done
 
 # SSH agent socket - only bind if SSH_AUTH_SOCK is set and exists
 SSH_BINDS=""
@@ -67,7 +82,6 @@ bwrap \
   --ro-bind /etc/ssl /etc/ssl \
   --ro-bind /etc/passwd /etc/passwd \
   --ro-bind /etc/group /etc/group \
-  --ro-bind /opt/claude-code /opt/claude-code \
   --ro-bind "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts" \
   --tmpfs /tmp \
   $SSH_BINDS \
