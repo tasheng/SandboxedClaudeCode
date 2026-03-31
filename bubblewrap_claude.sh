@@ -67,6 +67,7 @@ bwrap \
   --ro-bind /etc/ssl /etc/ssl \
   --ro-bind /etc/passwd /etc/passwd \
   --ro-bind /etc/group /etc/group \
+  --ro-bind /opt/claude-code /opt/claude-code \
   --ro-bind "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts" \
   --tmpfs /tmp \
   $SSH_BINDS \
