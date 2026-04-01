@@ -87,6 +87,13 @@ for path in "${TOOL_OPTIONAL_FILES[@]}"; do
   [ -f "$path" ] && OPTIONAL_BINDS+=(--ro-bind "$path" "$path")
 done
 
+LATEX_RO_BINDS=()
+[ -d /etc/texmf ] && LATEX_RO_BINDS+=(--ro-bind /etc/texmf /etc/texmf)
+
+LATEX_RW_BINDS=()
+[ -d "$HOME/.texlive/texmf-config" ] && LATEX_RW_BINDS+=(--bind "$HOME/.texlive/texmf-config" "$HOME/.texlive/texmf-config")
+[ -d "$HOME/.texlive/texmf-var" ] && LATEX_RW_BINDS+=(--bind "$HOME/.texlive/texmf-var" "$HOME/.texlive/texmf-var")
+
 STATE_BINDS=()
 for path in "${TOOL_STATE_DIRS[@]}"; do
   [ -d "$path" ] && STATE_BINDS+=(--bind "$path" "$path")
@@ -178,6 +185,8 @@ exec bwrap \
   "${SSH_PUBKEY_BINDS[@]}" \
   "${GPG_ENV[@]}" \
   "${OPTIONAL_BINDS[@]}" \
+  "${LATEX_RO_BINDS[@]}" \
+  "${LATEX_RW_BINDS[@]}" \
   "${STATE_BINDS[@]}" \
   "${GPG_BINDS[@]}" \
   "${DBUS_BINDS[@]}" \
