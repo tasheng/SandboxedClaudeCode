@@ -4,11 +4,12 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./bubblewrap.sh <claude|codex> [tool arguments...]
+Usage: ./bubblewrap.sh <claude|codex|bash> [tool arguments...]
 
 Examples:
   ./bubblewrap.sh claude
   ./bubblewrap.sh codex
+  ./bubblewrap.sh bash
   ./bubblewrap.sh codex exec "pwd"
 EOF
 }
@@ -21,6 +22,19 @@ fi
 TOOL="$1"
 shift
 
+COMMON_OPTIONAL_DIRS=(
+  "$HOME/.nvm"
+  "$HOME/.config/git"
+  "$HOME/.config/gh"
+  "/cvmfs"
+  "/data00"
+  "/data"
+)
+
+COMMON_OPTIONAL_FILES=(
+  "$HOME/.git-credentials"
+)
+
 case "$TOOL" in
   claude)
     TOOL_CMD="$(command -v claude 2>/dev/null || true)"
@@ -28,15 +42,10 @@ case "$TOOL" in
     TOOL_STATE_DIRS=("$HOME/.claude")
     TOOL_STATE_FILES=("$HOME/.claude.json")
     TOOL_OPTIONAL_DIRS=(
-      "$HOME/.nvm"
-      "$HOME/.config/git"
-      "$HOME/.config/gh"
-      "/cvmfs"
+      "${COMMON_OPTIONAL_DIRS[@]}"
       "/opt/claude-code"
     )
-    TOOL_OPTIONAL_FILES=(
-      "$HOME/.git-credentials"
-    )
+    TOOL_OPTIONAL_FILES=("${COMMON_OPTIONAL_FILES[@]}")
     TOOL_NEEDS_DBUS=1
     ;;
   codex)
@@ -45,15 +54,31 @@ case "$TOOL" in
     TOOL_STATE_DIRS=("$HOME/.codex")
     TOOL_STATE_FILES=()
     TOOL_OPTIONAL_DIRS=(
-      "$HOME/.config/git"
-      "$HOME/.config/gh"
+      "${COMMON_OPTIONAL_DIRS[@]}"
       "$HOME/.local/share/codex"
       "$HOME/.npm-global"
     )
     TOOL_OPTIONAL_FILES=(
-        "$HOME/.git-credentials"
-        "$HOME/.codex/config.toml"
-        "$HOME/.codex/auth.json"
+      "${COMMON_OPTIONAL_FILES[@]}"
+      "$HOME/.codex/config.toml"
+      "$HOME/.codex/auth.json"
+    )
+    TOOL_NEEDS_DBUS=0
+    ;;
+  bash)
+    TOOL_CMD="$(command -v bash 2>/dev/null || true)"
+    TOOL_EXTRA_ARGS=()
+    TOOL_STATE_DIRS=()
+    TOOL_STATE_FILES=()
+    TOOL_OPTIONAL_DIRS=(
+        "${COMMON_OPTIONAL_DIRS[@]}"
+        "$HOME/bin"
+        "$HOME/.cargo"
+        "$HOME/.local"
+    )
+    TOOL_OPTIONAL_FILES=(
+        "${COMMON_OPTIONAL_FILES[@]}"
+        "$HOME/.bashrc"
     )
     TOOL_NEEDS_DBUS=0
     ;;
@@ -62,7 +87,7 @@ case "$TOOL" in
       exit 0
       ;;
   *)
-      echo "Error: unsupported tool '$TOOL'. Expected 'claude' or 'codex'." >&2
+      echo "Error: unsupported tool '$TOOL'. Expected 'claude', 'codex', or 'bash'." >&2
       usage >&2
       exit 1
       ;;
