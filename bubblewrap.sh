@@ -21,6 +21,7 @@ fi
 
 TOOL="$1"
 shift
+TOOL_ARGS=("$@")
 
 COMMON_OPTIONAL_DIRS=(
   "$HOME/.nvm"
@@ -32,8 +33,16 @@ COMMON_OPTIONAL_DIRS=(
 )
 
 COMMON_OPTIONAL_FILES=(
-  "$HOME/.git-credentials"
 )
+
+GIT_CREDENTIAL_STORE_DIR="$HOME/.local/share/git"
+GIT_CREDENTIAL_STORE_FILE="$GIT_CREDENTIAL_STORE_DIR/credentials"
+
+mkdir -p "$GIT_CREDENTIAL_STORE_DIR"
+if [ -f "$HOME/.git-credentials" ] && [ ! -f "$GIT_CREDENTIAL_STORE_FILE" ]; then
+  cp "$HOME/.git-credentials" "$GIT_CREDENTIAL_STORE_FILE"
+  chmod 600 "$GIT_CREDENTIAL_STORE_FILE"
+fi
 
 case "$TOOL" in
   claude)
@@ -158,6 +167,23 @@ fi
 GPG_ENV=()
 [ -n "${GPG_SIGNING_KEY_ID:-}" ] && GPG_ENV+=(--setenv GPG_SIGNING_KEY_ID "$GPG_SIGNING_KEY_ID")
 
+GIT_ENV=()
+GIT_CONFIG_COUNT_BASE="${GIT_CONFIG_COUNT:-0}"
+if [[ "$GIT_CONFIG_COUNT_BASE" =~ ^[0-9]+$ ]]; then
+  GIT_CONFIG_COUNT_RESET_INDEX="$GIT_CONFIG_COUNT_BASE"
+  GIT_CONFIG_COUNT_HELPER_INDEX="$((GIT_CONFIG_COUNT_BASE + 1))"
+  GIT_ENV+=(
+    --setenv GIT_CONFIG_COUNT "$((GIT_CONFIG_COUNT_BASE + 2))"
+    --setenv "GIT_CONFIG_KEY_$GIT_CONFIG_COUNT_RESET_INDEX" credential.helper
+    --setenv "GIT_CONFIG_VALUE_$GIT_CONFIG_COUNT_RESET_INDEX" ""
+    --setenv "GIT_CONFIG_KEY_$GIT_CONFIG_COUNT_HELPER_INDEX" credential.helper
+    --setenv "GIT_CONFIG_VALUE_$GIT_CONFIG_COUNT_HELPER_INDEX" "store --file $GIT_CREDENTIAL_STORE_FILE"
+  )
+fi
+
+GIT_CREDENTIAL_BINDS=()
+[ -d "$GIT_CREDENTIAL_STORE_DIR" ] && GIT_CREDENTIAL_BINDS+=(--bind "$GIT_CREDENTIAL_STORE_DIR" "$GIT_CREDENTIAL_STORE_DIR")
+
 GPG_BINDS=()
 if [ -d "$HOME/.gnupg" ]; then
   GPG_BINDS+=(--bind "$HOME/.gnupg" "$HOME/.gnupg")
@@ -213,9 +239,11 @@ exec bwrap \
   "${LATEX_RO_BINDS[@]}" \
   "${LATEX_RW_BINDS[@]}" \
   "${STATE_BINDS[@]}" \
+  "${GIT_CREDENTIAL_BINDS[@]}" \
   "${GPG_BINDS[@]}" \
   "${DBUS_BINDS[@]}" \
   "${KEYRING_BINDS[@]}" \
+  "${GIT_ENV[@]}" \
   "${SSH_ENV[@]}" \
   "${DBUS_ENV[@]}" \
-  "$TOOL_BIN" "${TOOL_EXTRA_ARGS[@]}" "$@"
+  "$TOOL_BIN" "${TOOL_EXTRA_ARGS[@]}" "${TOOL_ARGS[@]}"
