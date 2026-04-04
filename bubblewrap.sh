@@ -28,11 +28,14 @@ COMMON_OPTIONAL_DIRS=(
   "$HOME/.config/git"
   "$HOME/.config/gh"
   "/cvmfs"
-  "/data00"
   "/data"
 )
 
 COMMON_OPTIONAL_FILES=(
+)
+
+COMMON_WRITABLE_DIRS=(
+  "/data00/tsheng"
 )
 
 GIT_CREDENTIAL_STORE_DIR="$HOME/.local/share/git"
@@ -119,6 +122,11 @@ for path in "${TOOL_OPTIONAL_DIRS[@]}"; do
 done
 for path in "${TOOL_OPTIONAL_FILES[@]}"; do
   [ -f "$path" ] && OPTIONAL_BINDS+=(--ro-bind "$path" "$path")
+done
+
+WRITABLE_BINDS=()
+for path in "${COMMON_WRITABLE_DIRS[@]}"; do
+  [ -d "$path" ] && WRITABLE_BINDS+=(--bind "$path" "$path")
 done
 
 LATEX_RO_BINDS=()
@@ -236,6 +244,7 @@ exec bwrap \
   "${SSH_PUBKEY_BINDS[@]}" \
   "${GPG_ENV[@]}" \
   "${OPTIONAL_BINDS[@]}" \
+  "${WRITABLE_BINDS[@]}" \
   "${LATEX_RO_BINDS[@]}" \
   "${LATEX_RW_BINDS[@]}" \
   "${STATE_BINDS[@]}" \
