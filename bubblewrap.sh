@@ -26,15 +26,37 @@ TOOL_ARGS=("$@")
 COMMON_OPTIONAL_DIRS=(
   "$HOME/.nvm"
   "$HOME/.config/git"
-  "$HOME/.config/gh"
   "/cvmfs"
   "/data"
+  "/opt/cuda"
+  "/usr/local/cuda"
+  "/usr/lib/nvidia"
+  "/usr/lib/x86_64-linux-gnu/nvidia"
+  "/etc/OpenCL"
+  "/etc/OpenCL/vendors"
+  "/etc/vulkan"
+  "/usr/share/vulkan"
+  "/usr/share/glvnd"
+  "/usr/share/egl"
+  "/usr/share/nvidia"
+  "/etc/ld.so.conf.d"
+  "/proc/driver/nvidia"
+  "/sys/bus/pci/devices"
+  "/sys/class/drm"
+  "/sys/module/nvidia"
+  "/sys/module/nvidia_uvm"
+  "/sys/module/nvidia_modeset"
+  "/sys/dev/char"
+  "/run/nvidia"
+  "/run/opengl-driver"
 )
 
 COMMON_OPTIONAL_FILES=(
+  "/etc/ld.so.conf"
 )
 
 COMMON_WRITABLE_DIRS=(
+  "$HOME/.config/gh"
   "/data00/tsheng"
 )
 
@@ -75,7 +97,7 @@ case "$TOOL" in
       "$HOME/.codex/config.toml"
       "$HOME/.codex/auth.json"
     )
-    TOOL_NEEDS_DBUS=0
+    TOOL_NEEDS_DBUS=1
     ;;
   bash)
     TOOL_CMD="$(command -v bash 2>/dev/null || true)"
@@ -92,7 +114,7 @@ case "$TOOL" in
         "${COMMON_OPTIONAL_FILES[@]}"
         "$HOME/.bashrc"
     )
-    TOOL_NEEDS_DBUS=0
+    TOOL_NEEDS_DBUS=1
     ;;
   -h|--help|help)
       usage
@@ -118,10 +140,38 @@ fi
 
 OPTIONAL_BINDS=()
 for path in "${TOOL_OPTIONAL_DIRS[@]}"; do
-  [ -d "$path" ] && OPTIONAL_BINDS+=(--ro-bind "$path" "$path")
+  OPTIONAL_BINDS+=(--ro-bind-try "$path" "$path")
 done
 for path in "${TOOL_OPTIONAL_FILES[@]}"; do
-  [ -f "$path" ] && OPTIONAL_BINDS+=(--ro-bind "$path" "$path")
+  OPTIONAL_BINDS+=(--ro-bind-try "$path" "$path")
+done
+
+CUDA_ENV=()
+if [ -d /opt/cuda ]; then
+  CUDA_LIB_PATHS=(/opt/cuda/lib64 /opt/cuda/nvvm/lib64)
+  CUDA_LD_LIBRARY_PATH="$(IFS=:; printf '%s' "${CUDA_LIB_PATHS[*]}")"
+  if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+    CUDA_LD_LIBRARY_PATH="$CUDA_LD_LIBRARY_PATH:$LD_LIBRARY_PATH"
+  fi
+  CUDA_ENV+=(
+    --setenv CUDA_HOME /opt/cuda
+    --setenv CUDA_PATH /opt/cuda
+    --setenv LD_LIBRARY_PATH "$CUDA_LD_LIBRARY_PATH"
+  )
+fi
+
+GPU_DEVICE_BINDS=()
+GPU_DEVICES=(
+  /dev/dri
+  /dev/kfd
+  /dev/nvidia0
+  /dev/nvidiactl
+  /dev/nvidia-uvm
+  /dev/nvidia-uvm-tools
+  /dev/nvidia-modeset
+)
+for path in "${GPU_DEVICES[@]}"; do
+  GPU_DEVICE_BINDS+=(--dev-bind-try "$path" "$path")
 done
 
 WRITABLE_BINDS=()
@@ -130,7 +180,7 @@ for path in "${COMMON_WRITABLE_DIRS[@]}"; do
 done
 
 LATEX_RO_BINDS=()
-[ -d /etc/texmf ] && LATEX_RO_BINDS+=(--ro-bind /etc/texmf /etc/texmf)
+LATEX_RO_BINDS+=(--ro-bind-try /etc/texmf /etc/texmf)
 
 LATEX_RW_BINDS=()
 [ -d "$HOME/.texlive/texmf-config" ] && LATEX_RW_BINDS+=(--bind "$HOME/.texlive/texmf-config" "$HOME/.texlive/texmf-config")
@@ -154,7 +204,7 @@ fi
 
 SSH_PUBKEY_BINDS=()
 for pubkey in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ecdsa.pub"; do
-  [ -f "$pubkey" ] && SSH_PUBKEY_BINDS+=(--ro-bind "$pubkey" "$pubkey")
+  SSH_PUBKEY_BINDS+=(--ro-bind-try "$pubkey" "$pubkey")
 done
 
 DBUS_BINDS=()
@@ -225,12 +275,12 @@ BASE_BINDS=(
   --chdir "$PWD"
 )
 
-[ -d /etc/ca-certificates ] && BASE_BINDS+=(--ro-bind /etc/ca-certificates /etc/ca-certificates)
-[ -d /etc/pki ] && BASE_BINDS+=(--ro-bind /etc/pki /etc/pki)
-[ -f "$HOME/.ssh/known_hosts" ] && BASE_BINDS+=(--ro-bind "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts")
-[ -f /usr/bin/gpg ] && BASE_BINDS+=(--ro-bind /usr/bin/gpg /usr/bin/gpg)
-[ -f "$HOME/.gitconfig" ] && BASE_BINDS+=(--ro-bind "$HOME/.gitconfig" "$HOME/.gitconfig")
-[ -d "$HOME/.local" ] && BASE_BINDS+=(--ro-bind "$HOME/.local" "$HOME/.local")
+[ -d /etc/ca-certificates ] && BASE_BINDS+=(--ro-bind-try /etc/ca-certificates /etc/ca-certificates)
+[ -d /etc/pki ] && BASE_BINDS+=(--ro-bind-try /etc/pki /etc/pki)
+BASE_BINDS+=(--ro-bind-try "$HOME/.ssh/known_hosts" "$HOME/.ssh/known_hosts")
+BASE_BINDS+=(--ro-bind-try /usr/bin/gpg /usr/bin/gpg)
+BASE_BINDS+=(--ro-bind-try "$HOME/.gitconfig" "$HOME/.gitconfig")
+BASE_BINDS+=(--ro-bind-try "$HOME/.local" "$HOME/.local")
 [ -d "$HOME/.npm" ] && BASE_BINDS+=(--bind "$HOME/.npm" "$HOME/.npm")
 [ -d "$PWD" ] && BASE_BINDS+=(--bind "$PWD" "$PWD")
 
@@ -240,6 +290,8 @@ BASE_BINDS=(
 
 exec bwrap \
   "${BASE_BINDS[@]}" \
+  "${CUDA_ENV[@]}" \
+  "${GPU_DEVICE_BINDS[@]}" \
   "${SSH_BINDS[@]}" \
   "${SSH_PUBKEY_BINDS[@]}" \
   "${GPG_ENV[@]}" \
