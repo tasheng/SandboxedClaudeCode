@@ -252,6 +252,9 @@ if [ -n "$GPG_SOCKDIR" ] && [ -d "$GPG_SOCKDIR" ]; then
   GPG_BINDS+=(--bind "$GPG_SOCKDIR" "$GPG_SOCKDIR")
 fi
 
+USER_TMPDIR="/tmp/$USER"
+mkdir -p "$USER_TMPDIR"
+
 BASE_BINDS=(
   --ro-bind /usr /usr
   --ro-bind /lib /lib
@@ -263,6 +266,7 @@ BASE_BINDS=(
   --ro-bind /etc/passwd /etc/passwd
   --ro-bind /etc/group /etc/group
   --tmpfs /tmp
+  --bind "$USER_TMPDIR" "$USER_TMPDIR"
   --proc /proc
   --dev /dev
   --setenv HOME "$HOME"
