@@ -4,10 +4,11 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./bubblewrap.sh <claude|codex|bash> [tool arguments...]
+Usage: ./bubblewrap.sh <claude|gemini|codex|bash> [tool arguments...]
 
 Examples:
   ./bubblewrap.sh claude
+  ./bubblewrap.sh gemini
   ./bubblewrap.sh codex
   ./bubblewrap.sh bash
   ./bubblewrap.sh codex exec "pwd"
@@ -24,6 +25,8 @@ shift
 TOOL_ARGS=("$@")
 
 COMMON_OPTIONAL_DIRS=(
+  "$HOME/.local/share/uv/tools/s"
+  "$HOME/.local/bin"
   "$HOME/.nvm"
   "$HOME/.config/git"
   "/cvmfs"
@@ -82,6 +85,33 @@ case "$TOOL" in
     TOOL_OPTIONAL_FILES=("${COMMON_OPTIONAL_FILES[@]}")
     TOOL_NEEDS_DBUS=1
     ;;
+  gemini)
+    TOOL_CMD="$(command -v gemini 2>/dev/null || true)"
+    TOOL_EXTRA_ARGS=(--yolo)
+    TOOL_STATE_DIRS=("$HOME/.gemini")
+    TOOL_STATE_FILES=()
+    TOOL_OPTIONAL_DIRS=(
+      "${COMMON_OPTIONAL_DIRS[@]}"
+    )
+    TOOL_OPTIONAL_FILES=("${COMMON_OPTIONAL_FILES[@]}")
+    TOOL_NEEDS_DBUS=1
+    ;;
+  omx)
+    TOOL_CMD="$(command -v omx 2>/dev/null || true)"
+    TOOL_STATE_DIRS=("$HOME/.codex")
+    TOOL_STATE_FILES=()
+    TOOL_OPTIONAL_DIRS=(
+      "${COMMON_OPTIONAL_DIRS[@]}"
+      "$HOME/.local/share/codex"
+      "$HOME/.npm-global"
+    )
+    TOOL_OPTIONAL_FILES=(
+      "${COMMON_OPTIONAL_FILES[@]}"
+      "$HOME/.codex/config.toml"
+      "$HOME/.codex/auth.json"
+    )
+    TOOL_NEEDS_DBUS=1
+    ;;
   codex)
     TOOL_CMD="$(command -v codex 2>/dev/null || true)"
     TOOL_EXTRA_ARGS=(--dangerously-bypass-approvals-and-sandbox)
@@ -121,7 +151,7 @@ case "$TOOL" in
       exit 0
       ;;
   *)
-      echo "Error: unsupported tool '$TOOL'. Expected 'claude', 'codex', or 'bash'." >&2
+      echo "Error: unsupported tool '$TOOL'. Expected 'claude', 'gemini', 'codex', or 'bash'." >&2
       usage >&2
       exit 1
       ;;
@@ -291,6 +321,8 @@ BASE_BINDS+=(--ro-bind-try "$HOME/.local" "$HOME/.local")
 [ -n "${OPENAI_API_KEY:-}" ] && BASE_BINDS+=(--setenv OPENAI_API_KEY "$OPENAI_API_KEY")
 [ -n "${OPENAI_BASE_URL:-}" ] && BASE_BINDS+=(--setenv OPENAI_BASE_URL "$OPENAI_BASE_URL")
 [ -n "${ANTHROPIC_API_KEY:-}" ] && BASE_BINDS+=(--setenv ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY")
+[ -n "${GEMINI_API_KEY:-}" ] && BASE_BINDS+=(--setenv GEMINI_API_KEY "$GEMINI_API_KEY")
+[ -n "${GOOGLE_API_KEY:-}" ] && BASE_BINDS+=(--setenv GOOGLE_API_KEY "$GOOGLE_API_KEY")
 
 exec bwrap \
   "${BASE_BINDS[@]}" \
