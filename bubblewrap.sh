@@ -4,16 +4,33 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./bubblewrap.sh <claude|gemini|codex|bash> [tool arguments...]
+Usage: ./bubblewrap.sh [--chdir DIR] <claude|gemini|codex|bash> [tool arguments...]
 
 Examples:
   ./bubblewrap.sh claude
   ./bubblewrap.sh gemini
   ./bubblewrap.sh codex
   ./bubblewrap.sh bash
+  ./bubblewrap.sh --chdir /path/to/project claude
   ./bubblewrap.sh codex exec "pwd"
 EOF
 }
+
+if [ $# -lt 1 ]; then
+  usage >&2
+  exit 1
+fi
+
+PWD=$(pwd)
+WORK_DIR="$PWD"
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --chdir) WORK_DIR="$2"; shift 2 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+WORK_DIR=`realpath $WORK_DIR`
 
 if [ $# -lt 1 ]; then
   usage >&2
@@ -306,7 +323,7 @@ BASE_BINDS=(
   --share-net
   --unshare-pid
   --die-with-parent
-  --chdir "$PWD"
+  --chdir "$WORK_DIR"
 )
 
 [ -d /etc/ca-certificates ] && BASE_BINDS+=(--ro-bind-try /etc/ca-certificates /etc/ca-certificates)
@@ -316,6 +333,7 @@ BASE_BINDS+=(--ro-bind-try /usr/bin/gpg /usr/bin/gpg)
 BASE_BINDS+=(--ro-bind-try "$HOME/.gitconfig" "$HOME/.gitconfig")
 BASE_BINDS+=(--ro-bind-try "$HOME/.local" "$HOME/.local")
 [ -d "$HOME/.npm" ] && BASE_BINDS+=(--bind "$HOME/.npm" "$HOME/.npm")
+[ -d "$WORK_DIR" ] && BASE_BINDS+=(--bind "$WORK_DIR" "$WORK_DIR")
 [ -d "$PWD" ] && BASE_BINDS+=(--bind "$PWD" "$PWD")
 
 [ -n "${OPENAI_API_KEY:-}" ] && BASE_BINDS+=(--setenv OPENAI_API_KEY "$OPENAI_API_KEY")
