@@ -109,6 +109,7 @@ case "$TOOL" in
     TOOL_STATE_FILES=()
     TOOL_OPTIONAL_DIRS=(
       "${COMMON_OPTIONAL_DIRS[@]}"
+      "$HOME/.npm-global"
     )
     TOOL_OPTIONAL_FILES=("${COMMON_OPTIONAL_FILES[@]}")
     TOOL_NEEDS_DBUS=1
